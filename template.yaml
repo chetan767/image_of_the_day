@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  image_of_the_day
+
+  Sample SAM Template for image_of_the_day
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Parameters:
+  GeminiApiKey:
+    Type: String
+    Description: Gemini API Key for image generation
+    NoEcho: true
+
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: "image-of-the-day-gemini"
+
+  WordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "daily-words"
+      AttributeDefinitions:
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: date
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  ConversationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "conversations"
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: conversation_id
+          AttributeType: S
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: conversation_id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: session-index
+          KeySchema:
+            - AttributeName: session_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  DailySuccessTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "daily-success"
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  ImageOfTheDay:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: image_of_the_day/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Architectures:
+        - x86_64
+      Policies:
+        - AmazonS3FullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref ImageBucket
+          GEMINI_API_KEY: !Ref GeminiApiKey
+          WORDS_TABLE: !Ref WordsTable
+          CONVERSATIONS_TABLE: !Ref ConversationsTable
+          SUCCESS_TABLE: !Ref DailySuccessTable
+
+
+
+Outputs:
+  ImageOfTheDayFunction:
+    Description: "Image of the Day Lambda Function ARN"
+    Value: !GetAtt ImageOfTheDay.Arn
+  ImageBucket:
+    Description: "S3 Bucket for storing generated images"
+    Value: !Ref ImageBucket

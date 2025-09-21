@@ -1,0 +1,5 @@
+requests
+google-genai
+pillow
+langchain-core
+boto3

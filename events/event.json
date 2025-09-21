@@ -1,0 +1,17 @@
+{
+    "version": "2.0",
+    "routeKey": "$default",
+    "rawPath": "/guess",
+    "rawQueryString": "",
+    "headers": {
+        "userid" : "2222"
+    },
+    "requestContext": {
+        "http": {
+            "method": "POST",
+            "path": "guess"
+        }
+    },
+    "body": "{\"word\": \"test\", \"user_word\": \"always\"}",
+    "isBase64Encoded": false
+}
