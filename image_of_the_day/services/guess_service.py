@@ -59,7 +59,7 @@ def check_word_match(user_word, actual_word, previous_messages):
         })
 
         # Add previous conversation
-        for msg in previous_messages:
+        for i, msg in enumerate(previous_messages):
             history.append({
                 "role": "user",
                 "parts": [{"text": f"My guess: {msg['user_word']}"}]
@@ -68,6 +68,8 @@ def check_word_match(user_word, actual_word, previous_messages):
                 "role": "model",
                 "parts": [{"text": json.dumps({"score": msg['score'], "message": msg['message']}, cls=DecimalEncoder)}]
             })
+
+        print(f"Final history: {(history)} messages")
 
         client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
         chat = client.chats.create(model="gemini-2.0-flash", history=history)
@@ -177,6 +179,8 @@ def handle_guess(event):
             guessed = True
         else:
             previous_messages = get_previous_messages(user_id, session_id)
+            print(f"Previous messages count: {len(previous_messages)}")
+            print(f"Previous messages: {previous_messages}")
             score, message = check_word_match(user_word, actual_word, previous_messages)
             guessed = False
 
