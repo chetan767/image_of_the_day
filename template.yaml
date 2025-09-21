@@ -37,7 +37,7 @@ Resources:
   ConversationsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: "conversations"
+      TableName: "conversations-v2"
       AttributeDefinitions:
         - AttributeName: user_id
           AttributeType: S

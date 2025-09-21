@@ -9,7 +9,7 @@ from langchain_core.output_parsers import JsonOutputParser
 
 dynamodb = boto3.resource('dynamodb')
 words_table = dynamodb.Table(os.environ['WORDS_TABLE'])
-conversations_table = dynamodb.Table(os.environ['CONVERSATIONS_TABLE'])
+conversations_table = dynamodb.Table(os.environ.get('CONVERSATIONS_TABLE', 'conversations-v2'))
 success_table = dynamodb.Table(os.environ.get('SUCCESS_TABLE', 'daily-success'))
 
 
