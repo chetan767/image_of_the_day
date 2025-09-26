@@ -1,4 +1,5 @@
 import json
+import os
 from services.image_service import generate_image, save_to_s3, store_daily_word
 from services.guess_service import handle_guess, check_daily_status
 
@@ -21,6 +22,16 @@ def lambda_handler(event, context):
 
 def handle_quiz(event):
     try:
+        # Check API key authentication
+        headers = event.get('headers', {})
+        api_key = headers.get('x-api-key') or headers.get('X-API-Key')
+        
+        if api_key != os.environ.get('ADMIN_API_KEY'):
+            return {
+                "statusCode": 401,
+                "body": json.dumps({"error": "Unauthorized"})
+            }
+        
         body = json.loads(event.get('body', '{}'))
         word = body.get('word')
         

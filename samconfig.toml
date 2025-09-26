@@ -16,7 +16,6 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
-parameter_overrides = "GeminiApiKey=placeholder"
 
 [default.package.parameters]
 resolve_s3 = true

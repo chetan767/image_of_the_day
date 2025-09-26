@@ -11,6 +11,10 @@ Parameters:
     Type: String
     Description: Gemini API Key for image generation
     NoEcho: true
+  AdminApiKey:
+    Type: String
+    Description: API Key for admin endpoints like generatequiz
+    NoEcho: true
 
 Globals:
   Function:
@@ -95,6 +99,7 @@ Resources:
         Variables:
           S3_BUCKET_NAME: !Ref ImageBucket
           GEMINI_API_KEY: !Ref GeminiApiKey
+          ADMIN_API_KEY: !Ref AdminApiKey
           WORDS_TABLE: !Ref WordsTable
           CONVERSATIONS_TABLE: !Ref ConversationsTable
           SUCCESS_TABLE: !Ref DailySuccessTable
