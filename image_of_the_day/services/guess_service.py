@@ -50,7 +50,7 @@ def check_word_match(user_word, actual_word, previous_messages):
         # Add system context
         history.append({
             "role": "user",
-            "parts": [{"text": f"You are helping me guess the word '{actual_word}'. Rate my guesses on a scale of 1-100 and provide helpful feedback. Return only JSON with 'score' and 'message' fields."}]
+            "parts": [{"text": f"You are a game master. The secret word is '{actual_word}'. Your task is to evaluate a user's guess. Provide a score from 1-100 on how close their guess is, and a creative hint in the 'message' field. **Do not reveal the secret word '{actual_word}' or direct synonyms in your response.** Your entire response must be only a single JSON object with 'score' (integer) and 'message' (string) keys."}]
         })
 
         history.append({

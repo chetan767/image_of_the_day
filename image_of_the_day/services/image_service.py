@@ -8,7 +8,7 @@ words_table = dynamodb.Table(os.environ['WORDS_TABLE'])
 
 def generate_image(word):
     client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
-    prompt = f"Create a visually creative and slightly abstract illustration that subtly hints at the word \"{word}\" without showing it directly. Use metaphorical, symbolic, or thematic elements to suggest the meaning of the word. The image should make the viewer think and infer the word based on visual clues. Avoid text or overly literal depictions. Focus on making the image tricky but guessable."
+    prompt = f"Create a visually creative and slightly abstract image that subtly hints at the word \"{word}\" without showing it directly. Use metaphorical, symbolic, or thematic elements to suggest the meaning of the word. The image should make the viewer think and infer the word based on visual clues. Avoid text or overly literal depictions. Focus on making the image tricky but guessable."
     response = client.models.generate_content(
         model="gemini-2.5-flash-image-preview",
         contents=[prompt],
