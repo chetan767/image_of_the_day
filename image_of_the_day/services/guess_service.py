@@ -114,6 +114,18 @@ def get_guess_count_for_today(user_id):
     )
     return response['Count']
 
+def get_guesses_for_today(user_id):
+    today = datetime.now().strftime('%Y-%m-%d')
+    response = conversations_table.query(
+        IndexName='user-date-index',
+        KeyConditionExpression='user_id = :uid AND #d = :d',
+        ExpressionAttributeNames={'#d': 'date'},
+        ExpressionAttributeValues={':uid': user_id, ':d': today}
+    )
+    items = response.get('Items', [])
+    items.sort(key=lambda x: x.get('timestamp', ''))
+    return items
+
 def store_daily_success(user_id, word, guessed):
     today = datetime.now().strftime('%Y-%m-%d')
     success_table.put_item(
@@ -140,7 +152,8 @@ def check_daily_status(event):
             }
         )
         item = response.get('Item')
-        guess_count = get_guess_count_for_today(user_id)
+        previous_guesses = get_guesses_for_today(user_id)
+        guess_count = len(previous_guesses)
         has_guessed_correctly = False
         if item:
             has_guessed_correctly = item.get('guessed', False)
@@ -157,7 +170,8 @@ def check_daily_status(event):
                 "date": today,
                 "image_url": image_url,
                 "guess_count": guess_count,
-                "out_of_guesses": out_of_guesses
+                "out_of_guesses": out_of_guesses,
+                "previous_guesses": previous_guesses
             }, cls=DecimalEncoder)
         }
         
