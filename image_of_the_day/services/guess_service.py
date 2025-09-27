@@ -100,11 +100,6 @@ def store_conversation(user_id, session_id, user_word, actual_word, score, messa
         }
     )
     
-    # Store success if score is 100
-    if score == 100:
-        store_daily_success(user_id, actual_word, guessed=True)
-
-
 def store_daily_success(user_id, word, guessed, guess_count):
     today = datetime.now().strftime('%Y-%m-%d')
     success_table.put_item(
@@ -185,16 +180,14 @@ def handle_guess(event):
         if user_word.lower() == actual_word.lower():
             score, message = 100, "Correct! You guessed the word!"
             guessed = True
-            store_daily_success(user_id, actual_word, guessed=True, guess_count=guess_count)
         else:
             previous_messages = get_previous_messages(user_id, session_id)
-            print(f"Previous messages count: {len(previous_messages)}")
-            print(f"Previous messages: {previous_messages}")
             score, message = check_word_match(user_word, actual_word, previous_messages)
-            # If guess_count reaches 5, store as not guessed
-            if guess_count >= 5:
-                store_daily_success(user_id, actual_word, guessed=False, guess_count=guess_count)
+            if score == 100:
+                guessed = True
+                message = "Correct! You guessed the word!"
 
+        store_daily_success(user_id, actual_word, guessed=guessed, guess_count=guess_count)
         store_conversation(user_id, session_id, user_word, actual_word, score, message)
 
         return {
