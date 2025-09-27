@@ -102,17 +102,19 @@ def store_conversation(user_id, session_id, user_word, actual_word, score, messa
     
     # Store success if score is 100
     if score == 100:
-        store_daily_success(user_id, actual_word)
+        store_daily_success(user_id, actual_word, guessed=True)
 
 
-def store_daily_success(user_id, word):
+def store_daily_success(user_id, word, guessed, guess_count):
     today = datetime.now().strftime('%Y-%m-%d')
     success_table.put_item(
         Item={
             'user_id': user_id,
             'date': today,
             'word': word,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'guessed': guessed,
+            'guess_count': guess_count
         }
     )
 
@@ -129,19 +131,23 @@ def check_daily_status(event):
                 'date': today
             }
         )
-        
-        has_guessed_correctly = 'Item' in response
-        
+        item = response.get('Item')
+        guess_count = item.get('guess_count', 0) if item else 0
+        has_guessed_correctly = False
+        if item:
+            has_guessed_correctly = item.get('guessed', False)
+
         # Get today's word and image
         word, s3_key = get_todays_word()
         image_url = f"https://{os.environ['S3_BUCKET_NAME']}.s3.amazonaws.com/{s3_key}" if s3_key else None
-        
+
         return {
             "statusCode": 200,
             "body": json.dumps({
                 "has_guessed_correctly": has_guessed_correctly,
                 "date": today,
-                "image_url": image_url
+                "image_url": image_url,
+                "guess_count": guess_count
             }, cls=DecimalEncoder)
         }
         
@@ -158,6 +164,7 @@ def handle_guess(event):
         user_word = body.get('user_word')
         user_id = body.get('user_id', 'anonymous')
         session_id = body.get('session_id', 'default')
+        guess_count = body.get('guess_count', 1)
 
         if not user_word:
             return {
@@ -173,16 +180,20 @@ def handle_guess(event):
                 "body": json.dumps({"error": "No word found for today"}, cls=DecimalEncoder)
             }
 
+        guessed = False
         # Check exact match first
         if user_word.lower() == actual_word.lower():
             score, message = 100, "Correct! You guessed the word!"
             guessed = True
+            store_daily_success(user_id, actual_word, guessed=True, guess_count=guess_count)
         else:
             previous_messages = get_previous_messages(user_id, session_id)
             print(f"Previous messages count: {len(previous_messages)}")
             print(f"Previous messages: {previous_messages}")
             score, message = check_word_match(user_word, actual_word, previous_messages)
-            guessed = False
+            # If guess_count reaches 5, store as not guessed
+            if guess_count >= 5:
+                store_daily_success(user_id, actual_word, guessed=False, guess_count=guess_count)
 
         store_conversation(user_id, session_id, user_word, actual_word, score, message)
 
