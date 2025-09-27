@@ -51,6 +51,8 @@ Resources:
           AttributeType: S
         - AttributeName: timestamp
           AttributeType: S
+        - AttributeName: date
+          AttributeType: S
       KeySchema:
         - AttributeName: user_id
           KeyType: HASH
@@ -62,6 +64,14 @@ Resources:
             - AttributeName: session_id
               KeyType: HASH
             - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: user-date-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: date
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
