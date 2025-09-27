@@ -12,6 +12,7 @@ words_table = dynamodb.Table(os.environ['WORDS_TABLE'])
 conversations_table = dynamodb.Table(os.environ.get('CONVERSATIONS_TABLE', 'conversations-v2'))
 success_table = dynamodb.Table(os.environ.get('SUCCESS_TABLE', 'daily-success'))
 
+MAX_GUESSES = 5
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -85,13 +86,14 @@ def check_word_match(user_word, actual_word, previous_messages):
         return 0, "Unable to process guess"
 
 
-def store_conversation(user_id, session_id, user_word, actual_word, score, message):
+def store_conversation(user_id, session_id, user_word, actual_word, score, message, date):
     conversation_id = str(uuid.uuid4())
     conversations_table.put_item(
         Item={
             'user_id': user_id,
             'conversation_id': conversation_id,
             'session_id': session_id,
+            'date': date,
             'timestamp': datetime.now().isoformat(),
             'user_word': user_word,
             'actual_word': actual_word,
@@ -99,8 +101,20 @@ def store_conversation(user_id, session_id, user_word, actual_word, score, messa
             'message': message
         }
     )
-    
-def store_daily_success(user_id, word, guessed, guess_count):
+
+
+def get_guess_count_for_today(user_id):
+    today = datetime.now().strftime('%Y-%m-%d')
+    response = conversations_table.query(
+        IndexName='user-date-index',
+        KeyConditionExpression='user_id = :uid AND #d = :d',
+        ExpressionAttributeNames={'#d': 'date'},
+        ExpressionAttributeValues={':uid': user_id, ':d': today},
+        Select='COUNT'
+    )
+    return response['Count']
+
+def store_daily_success(user_id, word, guessed):
     today = datetime.now().strftime('%Y-%m-%d')
     success_table.put_item(
         Item={
@@ -109,7 +123,6 @@ def store_daily_success(user_id, word, guessed, guess_count):
             'word': word,
             'timestamp': datetime.now().isoformat(),
             'guessed': guessed,
-            'guess_count': guess_count
         }
     )
 
@@ -127,11 +140,12 @@ def check_daily_status(event):
             }
         )
         item = response.get('Item')
-        guess_count = item.get('guess_count', 0) if item else 0
+        guess_count = get_guess_count_for_today(user_id)
         has_guessed_correctly = False
         if item:
             has_guessed_correctly = item.get('guessed', False)
 
+        out_of_guesses = guess_count >= MAX_GUESSES or has_guessed_correctly
         # Get today's word and image
         word, s3_key = get_todays_word()
         image_url = f"https://{os.environ['S3_BUCKET_NAME']}.s3.amazonaws.com/{s3_key}" if s3_key else None
@@ -142,7 +156,8 @@ def check_daily_status(event):
                 "has_guessed_correctly": has_guessed_correctly,
                 "date": today,
                 "image_url": image_url,
-                "guess_count": guess_count
+                "guess_count": guess_count,
+                "out_of_guesses": out_of_guesses
             }, cls=DecimalEncoder)
         }
         
@@ -159,7 +174,21 @@ def handle_guess(event):
         user_word = body.get('user_word')
         user_id = body.get('user_id', 'anonymous')
         session_id = body.get('session_id', 'default')
-        guess_count = body.get('guess_count', 1)
+
+        # Check current guess status from DB
+        today = datetime.now().strftime('%Y-%m-%d')
+        status_response = success_table.get_item(Key={'user_id': user_id, 'date': today})
+        status_item = status_response.get('Item')
+
+        guess_count = get_guess_count_for_today(user_id)
+        has_guessed_correctly = status_item.get('guessed', False) if status_item else False
+
+        if has_guessed_correctly:
+            return {"statusCode": 403, "body": json.dumps({"error": "You have already guessed the word correctly today."})}
+
+        if guess_count >= MAX_GUESSES :
+            return {"statusCode": 403, "body": json.dumps({"error": f"You have reached the maximum of {MAX_GUESSES} guesses for today."})}
+
 
         if not user_word:
             return {
@@ -187,15 +216,16 @@ def handle_guess(event):
                 guessed = True
                 message = "Correct! You guessed the word!"
 
-        store_daily_success(user_id, actual_word, guessed=guessed, guess_count=guess_count)
-        store_conversation(user_id, session_id, user_word, actual_word, score, message)
+        store_conversation(user_id, session_id, user_word, actual_word, score, message, today)
+        store_daily_success(user_id, actual_word, guessed=guessed)
 
         return {
             "statusCode": 200,
             "body": json.dumps({
                 "score": score,
                 "message": message,
-                "guessed": guessed
+                "guessed": guessed,
+                "out_of_guesses": (guess_count + 1) >= MAX_GUESSES or guessed
             }, cls=DecimalEncoder)
         }
 
